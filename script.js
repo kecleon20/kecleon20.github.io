@@ -202,25 +202,108 @@ function runTests() {
 runTests();
 
 /* =========================================================================
-   5. CERTIFICADOS — FLECHAS IZQ/DER
+   5. CERTIFICADOS — FLECHAS IZQ/DER CON ANIME.JS (SCROLL NATIVO)
    ========================================================================= */
 const certificatesTrack = document.querySelector('#certificatesTrack');
 const certNext = document.querySelector('#certNext');
 const certPrev = document.querySelector('#certPrev');
 
 if (certificatesTrack && certNext && certPrev) {
-  certNext.addEventListener('click', () => {
-    certificatesTrack.scrollBy({
-      left: certificatesTrack.clientWidth * 0.85,
-      behavior: 'smooth',
+  const cards = Array.from(document.querySelectorAll('.certificate-card'));
+  let currentCertIndex = 0;
+
+  // Esta función anima el scrollLeft del contenedor de forma nativa
+  function scrollToCertificate(index) {
+    const card = cards[index];
+    if (!card) return;
+
+    // Calculamos la posición exacta central
+    const targetScroll = card.offsetLeft - (certificatesTrack.clientWidth / 2) + (card.offsetWidth / 2);
+    
+    if (typeof anime !== 'undefined') {
+      const { animate } = anime;
+      // Animamos un objeto "proxy" y actualizamos el scroll real
+      animate(certificatesTrack, {
+        scrollLeft: targetScroll,
+        duration: 600,
+        ease: 'outQuart',
+        complete: () => {
+          updateCertificatesFocus();
+        }
+      });
+    } else {
+      // Si Anime.js falla, hacemos el scroll nativo
+      certificatesTrack.scrollTo({ left: targetScroll, behavior: 'smooth' });
+      setTimeout(updateCertificatesFocus, 600);
+    }
+  }
+
+  // Efecto visual de "enfoque" (escala y opacidad)
+  function updateCertificatesFocus() {
+    if (typeof anime === 'undefined') return;
+    const { animate } = anime;
+    
+    const trackRect = certificatesTrack.getBoundingClientRect();
+    const trackCenter = trackRect.left + trackRect.width / 2;
+
+    cards.forEach((card) => {
+      const cardRect = card.getBoundingClientRect();
+      const cardCenter = cardRect.left + cardRect.width / 2;
+      const distanceFromCenter = Math.abs(trackCenter - cardCenter);
+      const threshold = cardRect.width * 0.5;
+
+      const isFocused = distanceFromCenter < threshold;
+      
+      animate(card, {
+        scale: isFocused ? 1 : 0.92,
+        opacity: isFocused ? 1 : 0.5,
+        duration: 400,
+        ease: 'outQuad'
+      });
     });
+  }
+
+  certNext.addEventListener('click', () => {
+    if (currentCertIndex < cards.length - 1) {
+      currentCertIndex++;
+      scrollToCertificate(currentCertIndex);
+    }
   });
 
   certPrev.addEventListener('click', () => {
-    certificatesTrack.scrollBy({
-      left: -certificatesTrack.clientWidth * 0.85,
-      behavior: 'smooth',
-    });
+    if (currentCertIndex > 0) {
+      currentCertIndex--;
+      scrollToCertificate(currentCertIndex);
+    }
+  });
+
+  // Actualizamos el índice si el usuario hace scroll manual
+  certificatesTrack.addEventListener('scroll', () => {
+    clearTimeout(window.certScrollTimer);
+    window.certScrollTimer = setTimeout(() => {
+      // Encontramos qué tarjeta está más cerca del centro
+      const trackRect = certificatesTrack.getBoundingClientRect();
+      const trackCenter = trackRect.left + trackRect.width / 2;
+      let closestIndex = 0;
+      let minDistance = Infinity;
+
+      cards.forEach((card, index) => {
+        const cardRect = card.getBoundingClientRect();
+        const cardCenter = cardRect.left + cardRect.width / 2;
+        const distance = Math.abs(trackCenter - cardCenter);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = index;
+        }
+      });
+      currentCertIndex = closestIndex;
+      updateCertificatesFocus();
+    }, 100);
+  });
+
+  // Estado inicial
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(updateCertificatesFocus, 500);
   });
 }
 
@@ -275,7 +358,6 @@ function openCertificate(src, alt) {
   setLightboxZoom(1);
 }
 
-// Ocultar spinner cuando la imagen del certificado termina de cargar (o falla)
 if (lightboxImage) {
   lightboxImage.addEventListener('load', () => {
     if (lightboxSpinner) lightboxSpinner.classList.add('hidden');
@@ -284,7 +366,6 @@ if (lightboxImage) {
     if (lightboxSpinner) lightboxSpinner.classList.add('hidden');
   });
 }
-
 
 function closeCertificate() {
   if (!lightbox) return;
@@ -345,13 +426,11 @@ function openPdfModal(src) {
   document.body.style.overflow = 'hidden';
 }
 
-// Ocultar spinner cuando el iframe del PDF termina de cargar
 if (pdfFrame) {
   pdfFrame.addEventListener('load', () => {
     if (pdfSpinner) pdfSpinner.classList.add('hidden');
   });
 }
-
 
 function closePdfModal() {
   if (!pdfModal) return;
@@ -391,9 +470,7 @@ function applyTheme(theme) {
   }
   try {
     localStorage.setItem(STORAGE_KEY, theme);
-  } catch (_) {
-    /* localStorage puede fallar en modo privado, ignorar */
-  }
+  } catch (_) {}
 }
 
 let savedTheme = null;
@@ -426,3 +503,61 @@ document.addEventListener('keydown', (event) => {
     closePdfModal();
   }
 });
+
+/* =========================================================================
+   11. ANIMACIONES CON ANIME.JS
+   ========================================================================= */
+if (typeof anime !== 'undefined') {
+  const { animate, stagger } = anime;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    animate('.hero-card .copy > *', {
+      opacity: [0, 1],
+      translateY: [30, 0],
+      duration: 1000,
+      delay: stagger(150),
+      ease: 'outExpo'
+    });
+
+    animate('.portrait-frame', {
+      opacity: [0, 1],
+      scale: [0.9, 1],
+      rotate: [0, 1.5],
+      duration: 1200,
+      delay: 300,
+      ease: 'outElastic(1, .6)'
+    });
+
+    animate('.floating-card', {
+      opacity: [0, 1],
+      translateY: [20, 0],
+      duration: 800,
+      delay: stagger(200, { start: 800 }),
+      ease: 'outBack'
+    });
+  });
+
+  const skillsSlide = document.querySelector('.slide[data-theme="skills"]');
+  
+  if (skillsSlide) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          animate('.skill i', {
+            width: function(el) {
+              const parentStyle = getComputedStyle(el.parentElement);
+              return parentStyle.getPropertyValue('--w') || '100%';
+            },
+            duration: 1500,
+            delay: stagger(100),
+            ease: 'outExpo'
+          });
+          
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    observer.observe(skillsSlide);
+  }
+}
